@@ -7,7 +7,7 @@ import (
 	"os"
 
 	"github.com/asv/git-monitoring/pkg/config"
-	"github.com/asv/git-monitoring/pkg/tools/pr_checker"
+	"github.com/asv/git-monitoring/pkg/tools/prchecker"
 )
 
 func main() {
@@ -29,9 +29,9 @@ func main() {
 	// Run monitors based on configuration
 	if cfg.Monitors.PRChecker.Enabled {
 		fmt.Println("Running PR Checker monitor...")
-		results := pr_checker.Monitor(cfg)
+		results := prchecker.Monitor(cfg)
 
-		allApproved := pr_checker.PrintResults(results)
+		allApproved := prchecker.PrintResults(results)
 		if !allApproved {
 			os.Exit(1)
 		}
