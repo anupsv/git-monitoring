@@ -1,0 +1,18 @@
+# Git Monitoring Configuration
+
+# GitHub API configuration
+[github]
+# Token will be read from GITHUB_TOKEN environment variable
+# You can optionally specify it here, but environment variable takes precedence
+token = ""
+
+# Monitor configurations
+[monitors]
+  # PR Checker configuration
+  [monitors.pr_checker]
+  enabled = true
+  repositories = [
+    "owner1/repo1",
+    "owner2/repo2"
+  ]
+  time_window_hours = 24  # Default is 24 hours 
