@@ -409,3 +409,95 @@ func TestLoadConfigFileNotFound(t *testing.T) {
 		t.Error("Expected an error for non-existent file, but got nil")
 	}
 }
+
+func TestLoadConfigInvalidFormat(t *testing.T) {
+	// Test loading an invalid format config file
+	invalidConfig := `
+# This is not valid TOML
+[github = invalid
+token = no-quotes
+`
+
+	tempFile, err := os.CreateTemp("", "invalid-config-*.toml")
+	if err != nil {
+		t.Fatalf("Failed to create temp file: %v", err)
+	}
+	defer os.Remove(tempFile.Name())
+
+	if _, err := tempFile.Write([]byte(invalidConfig)); err != nil {
+		t.Fatalf("Failed to write to temp file: %v", err)
+	}
+
+	if err := tempFile.Close(); err != nil {
+		t.Fatalf("Failed to close temp file: %v", err)
+	}
+
+	// Test loading the invalid config file
+	_, err = config.LoadConfig(tempFile.Name())
+	if err == nil {
+		t.Error("Expected an error for invalid TOML format, but got nil")
+	}
+}
+
+func TestValidateRepoVisibility(t *testing.T) {
+	testCases := []struct {
+		name           string
+		repoVisibility string
+		expectError    bool
+	}{
+		{
+			name:           "Valid specific",
+			repoVisibility: "specific",
+			expectError:    false,
+		},
+		{
+			name:           "Valid all",
+			repoVisibility: "all",
+			expectError:    false,
+		},
+		{
+			name:           "Valid public-only",
+			repoVisibility: "public-only",
+			expectError:    false,
+		},
+		{
+			name:           "Valid private-only",
+			repoVisibility: "private-only",
+			expectError:    false,
+		},
+		{
+			name:           "Invalid value",
+			repoVisibility: "invalid-value",
+			expectError:    true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := &config.Config{
+				GitHub: config.GitHubConfig{
+					Token: "valid-token",
+				},
+				Monitors: config.MonitorsConfig{
+					PRChecker: config.PRCheckerConfig{
+						Enabled:        true,
+						RepoVisibility: tc.repoVisibility,
+						// Add valid repositories for specific so the validation passes that part
+						SpecificRepositories: []string{"owner/repo"},
+						TimeWindow:           24,
+					},
+				},
+			}
+
+			err := cfg.Validate()
+
+			if tc.expectError && err == nil {
+				t.Error("Expected validation error but got nil")
+			}
+
+			if !tc.expectError && err != nil {
+				t.Errorf("Expected no validation error but got: %v", err)
+			}
+		})
+	}
+}
