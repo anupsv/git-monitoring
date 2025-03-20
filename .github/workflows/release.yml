@@ -5,10 +5,21 @@ on:
     tags:
       - 'v*'
 
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  
 jobs:
   release:
     name: Create Release
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+      attestations: write
+      id-token: write
+
     steps:
       - name: Checkout code
         uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608  # v4
@@ -29,6 +40,9 @@ jobs:
           go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
           golangci-lint run ./...
 
+      - name: Run tests
+        run: go test -v ./... ./pkg/tools/common/test ./pkg/tools/prchecker/test ./pkg/config/test
+
       - name: Build binaries
         run: |
           mkdir -p bin
@@ -36,9 +50,6 @@ jobs:
           GOOS=darwin GOARCH=amd64 go build -o bin/git-monitor-darwin-amd64 ./cmd/git-monitor
           GOOS=darwin GOARCH=arm64 go build -o bin/git-monitor-darwin-arm64 ./cmd/git-monitor
           GOOS=windows GOARCH=amd64 go build -o bin/git-monitor-windows-amd64.exe ./cmd/git-monitor
-
-      - name: Run tests
-        run: go test -v ./... ./pkg/tools/common/test ./pkg/tools/prchecker/test ./pkg/config/test
 
       - name: Create Release
         id: create_release
@@ -77,28 +88,32 @@ jobs:
         uses: docker/setup-buildx-action@v2
       
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@v2
+        uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1
         with:
-          registry: ghcr.io
+          registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Extract metadata for Docker
         id: meta
-        uses: docker/metadata-action@v4
+        uses: docker/metadata-action@9ec57ed1fcdbf14dcef7dfbe97b2010124a938b7
         with:
-          images: ghcr.io/${{ github.repository }}
-          tags: |
-            type=raw,value=latest
-            type=semver,pattern={{version}}
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+
 
       - name: Build and push
-        uses: docker/build-push-action@v3
+        id: push
+        uses: docker/build-push-action@f2a1d5e99d037542a71f64918e516c093c6f3fc4
         with:
           context: .
           file: ./docker/Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+
+      - name: Generate artifact attestation
+        uses: actions/attest-build-provenance@v2
+        with:
+            subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME}}
+            subject-digest: ${{ steps.push.outputs.digest }}
+            push-to-registry: true
