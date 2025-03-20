@@ -218,6 +218,7 @@ func PrintResults(results []Result) bool {
 }
 
 // CheckRepository checks a single repository for unapproved PRs
+// nolint:gocyclo // This function has high complexity due to numerous edge cases and conditions
 func (s *Service) CheckRepository(repository, token string, timeWindow int, debugLogging bool) Result {
 	result := Result{
 		Repository: repository,
@@ -391,6 +392,7 @@ func (s *Service) CheckRepository(repository, token string, timeWindow int, debu
 }
 
 // isPRApproved checks if a specific PR has been approved
+// nolint:gocyclo // Contains necessary logic for handling various review states
 func isPRApproved(ctx context.Context, client common.GitHubClientInterface, owner, repo string, prNumber int, debugLogging bool) (bool, error) {
 	reviews, _, err := client.ListPullRequestReviews(ctx, owner, repo, prNumber, nil)
 	if err != nil {

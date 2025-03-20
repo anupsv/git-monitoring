@@ -169,13 +169,13 @@ func TestCheckRepository(t *testing.T) {
 			// For the special "Error fetching reviews" case, ensure we set the error correctly
 			if tc.name == "Error fetching reviews" {
 				// Explicitly set the ListPullRequestReviewsFunc to return the error
-				mockClient.ListPullRequestReviewsFunc = func(ctx context.Context, owner, repo string, number int, opts *github.ListOptions) ([]*github.PullRequestReview, *github.Response, error) {
+				mockClient.ListPullRequestReviewsFunc = func(_ context.Context, _ string, _ string, _ int, _ *github.ListOptions) ([]*github.PullRequestReview, *github.Response, error) {
 					return nil, nil, errors.New("API error")
 				}
 			} else if tc.name == "Multiple PRs, mixed approval and merge status" {
 				// For this test, we need to handle each PR differently based on PR number
 				// nolint:revive
-				mockClient.ListPullRequestReviewsFunc = func(ctx context.Context, owner, repo string, number int, opts *github.ListOptions) ([]*github.PullRequestReview, *github.Response, error) {
+				mockClient.ListPullRequestReviewsFunc = func(_ context.Context, _ string, _ string, number int, _ *github.ListOptions) ([]*github.PullRequestReview, *github.Response, error) {
 					if number == 1 {
 						// PR #1 is approved
 						return []*github.PullRequestReview{createMockReview("APPROVED", "reviewer1")}, &github.Response{NextPage: 0}, nil
@@ -185,18 +185,17 @@ func TestCheckRepository(t *testing.T) {
 				}
 			} else if tc.name == "Unapproved PR with recent merge" || tc.name == "Changes requested PR with recent merge" {
 				// Handle the test cases that expect unapproved PRs
-				mockClient.ListPullRequestReviewsFunc = func(ctx context.Context, owner, repo string, number int, opts *github.ListOptions) ([]*github.PullRequestReview, *github.Response, error) {
+				mockClient.ListPullRequestReviewsFunc = func(_ context.Context, _ string, _ string, _ int, _ *github.ListOptions) ([]*github.PullRequestReview, *github.Response, error) {
 					if tc.name == "Unapproved PR with recent merge" {
 						// Return empty reviews to indicate no approvals
 						return []*github.PullRequestReview{}, &github.Response{NextPage: 0}, nil
-					} else {
-						// Return CHANGES_REQUESTED for the other case
-						return []*github.PullRequestReview{createMockReview("CHANGES_REQUESTED", "reviewer1")}, &github.Response{NextPage: 0}, nil
 					}
+					// Return CHANGES_REQUESTED for the other case
+					return []*github.PullRequestReview{createMockReview("CHANGES_REQUESTED", "reviewer1")}, &github.Response{NextPage: 0}, nil
 				}
 			} else {
 				// Default behavior for all other test cases
-				mockClient.ListPullRequestReviewsFunc = func(ctx context.Context, owner, repo string, number int, opts *github.ListOptions) ([]*github.PullRequestReview, *github.Response, error) {
+				mockClient.ListPullRequestReviewsFunc = func(_ context.Context, _ string, _ string, _ int, _ *github.ListOptions) ([]*github.PullRequestReview, *github.Response, error) {
 					return tc.mockReviews, &github.Response{NextPage: 0}, tc.mockReviewError
 				}
 			}
