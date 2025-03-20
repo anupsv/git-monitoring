@@ -10,6 +10,9 @@ jobs:
   lint:
     name: Lint
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
     steps:
       - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608  # v4
         # Specific commit hash for actions/checkout@v4
@@ -33,6 +36,9 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
     steps:
       - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608  # v4
         # Specific commit hash for actions/checkout@v4
@@ -58,6 +64,9 @@ jobs:
     permissions:
       contents: read
       packages: write
+      id-token: write
+      attestations: write
+      security-events: write
     steps:
       - name: Checkout code
         uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608  # v4
@@ -84,6 +93,7 @@ jobs:
             type=sha,format=short,enable=${{ github.ref == 'refs/heads/main' }}
       
       - name: Build and push
+        id: push
         uses: docker/build-push-action@v3
         with:
           context: .
@@ -93,4 +103,32 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+      
+      - name: Generate artifact attestation
+        if: github.ref == 'refs/heads/main'
+        uses: actions/attest-build-provenance@v2
+        with:
+            subject-name: ghcr.io/${{ github.repository }}
+            subject-digest: ${{ steps.push.outputs.digest }}
+            push-to-registry: true
+
+  codeql:
+    name: CodeQL Analysis
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608  # v4
+        # Specific commit hash for actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v2
+        with:
+          languages: go
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v2
       
