@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/asv/git-monitoring/pkg/config"
-	"github.com/asv/git-monitoring/pkg/tools/common"
+	"github.com/anupsv/git-monitoring/pkg/config"
+	"github.com/anupsv/git-monitoring/pkg/tools/common"
 	"github.com/google/go-github/v45/github"
 )
 

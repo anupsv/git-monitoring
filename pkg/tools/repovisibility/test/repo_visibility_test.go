@@ -7,9 +7,9 @@ import (
 
 	"github.com/google/go-github/v45/github"
 
-	"github.com/asv/git-monitoring/pkg/config"
-	"github.com/asv/git-monitoring/pkg/tools/common/test"
-	"github.com/asv/git-monitoring/pkg/tools/repovisibility"
+	"github.com/anupsv/git-monitoring/pkg/config"
+	"github.com/anupsv/git-monitoring/pkg/tools/common/test"
+	"github.com/anupsv/git-monitoring/pkg/tools/repovisibility"
 )
 
 func TestRepoVisibilityChecker_CheckOrganization(t *testing.T) {

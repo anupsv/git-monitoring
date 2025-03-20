@@ -12,7 +12,7 @@ A Go application to monitor Git repositories and ensure they follow best practic
 
 ```bash
 # Clone the repository
-git clone https://github.com/asv/git-monitoring.git
+git clone https://github.com/anupsv/git-monitoring.git
 cd git-monitoring
 
 # Build the application
@@ -132,10 +132,10 @@ You can use the official Docker image from GitHub Container Registry:
 
 ```bash
 # Pull the latest image
-docker pull ghcr.io/asv/git-monitoring:latest
+docker pull ghcr.io/anupsv/git-monitoring:latest
 
 # Run the container
-docker run -e GITHUB_TOKEN="your-github-token" -v $(pwd)/config.toml:/app/config.toml ghcr.io/asv/git-monitoring:latest
+docker run -e GITHUB_TOKEN="your-github-token" -v $(pwd)/config.toml:/app/config.toml ghcr.io/anupsv/git-monitoring:latest
 ```
 
 Or build it locally:
@@ -174,10 +174,10 @@ The application is available as a Docker image and can be run in various configu
 
 ```bash
 # Pull the official image
-docker pull ghcr.io/asv/git-monitoring:latest
+docker pull ghcr.io/anupsv/git-monitoring:latest
 
 # Basic usage with required GitHub token
-docker run --rm -e GITHUB_TOKEN=your_github_token ghcr.io/asv/git-monitoring
+docker run --rm -e GITHUB_TOKEN=your_github_token ghcr.io/anupsv/git-monitoring
 ```
 
 ### Configuration Options
@@ -210,7 +210,7 @@ cp config.toml.example my-config.toml
 docker run --rm \
   -v $(pwd)/my-config.toml:/config/config.toml \
   -e GITHUB_TOKEN=your_github_token \
-  ghcr.io/asv/git-monitoring
+  ghcr.io/anupsv/git-monitoring
 ```
 
 #### Option 2: Mount a Config File to a Custom Location
@@ -223,7 +223,7 @@ docker run --rm \
   -v $(pwd)/my-config.toml:/app/custom-location/config.toml \
   -e CONFIG_PATH=/app/custom-location/config.toml \
   -e GITHUB_TOKEN=your_github_token \
-  ghcr.io/asv/git-monitoring
+  ghcr.io/anupsv/git-monitoring
 ```
 
 #### Option 3: Mount a Config Directory
@@ -242,7 +242,7 @@ docker run --rm \
   -v $(pwd)/configs:/config \
   -e CONFIG_PATH=/config/prod.toml \
   -e GITHUB_TOKEN=your_github_token \
-  ghcr.io/asv/git-monitoring
+  ghcr.io/anupsv/git-monitoring
 ```
 
 ### Running in CI/CD Pipelines
@@ -251,7 +251,7 @@ Example GitHub Actions workflow step:
 
 ```yaml
 - name: Check repository compliance
-  uses: docker://ghcr.io/asv/git-monitoring:latest
+  uses: docker://ghcr.io/anupsv/git-monitoring:latest
   env:
     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   with:
@@ -262,7 +262,7 @@ Example GitHub Actions workflow step:
 
 ```bash
 # Clone the repository
-git clone https://github.com/asv/git-monitoring.git
+git clone https://github.com/anupsv/git-monitoring.git
 cd git-monitoring
 
 # Build the Docker image

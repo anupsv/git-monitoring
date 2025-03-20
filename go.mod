@@ -1,4 +1,4 @@
-module github.com/asv/git-monitoring
+module github.com/anupsv/git-monitoring
 
 go 1.23.0
 

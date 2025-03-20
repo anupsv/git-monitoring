@@ -27,6 +27,24 @@ func createMockPR(id int, title, author, url string, createdAt time.Time, merged
 	}
 }
 
+// Create a mock PR with UpdatedAt field to ensure it passes the time window check
+func createMockPRWithUpdatedAt(id int, title, author, url string, createdAt time.Time, updatedAt time.Time, mergedAt *time.Time) *github.PullRequest {
+	authorLogin := author
+	timestamp := &github.Timestamp{Time: updatedAt}
+	pr := &github.PullRequest{
+		Number:    &id,
+		Title:     &title,
+		HTMLURL:   &url,
+		CreatedAt: &createdAt,
+		UpdatedAt: timestamp,
+		MergedAt:  mergedAt,
+		User: &github.User{
+			Login: &authorLogin,
+		},
+	}
+	return pr
+}
+
 func createMockReview(state string, reviewer string) *github.PullRequestReview {
 	// Create a timestamp for the review
 	submittedAt := time.Now()

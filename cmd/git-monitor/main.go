@@ -7,10 +7,10 @@ import (
 	"log"
 	"os"
 
-	"github.com/asv/git-monitoring/pkg/config"
-	"github.com/asv/git-monitoring/pkg/tools/common"
-	"github.com/asv/git-monitoring/pkg/tools/prchecker"
-	"github.com/asv/git-monitoring/pkg/tools/repovisibility"
+	"github.com/anupsv/git-monitoring/pkg/config"
+	"github.com/anupsv/git-monitoring/pkg/tools/common"
+	"github.com/anupsv/git-monitoring/pkg/tools/prchecker"
+	"github.com/anupsv/git-monitoring/pkg/tools/repovisibility"
 )
 
 func main() {

@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/asv/git-monitoring/pkg/tools/common"
+	"github.com/anupsv/git-monitoring/pkg/tools/common"
 	"github.com/google/go-github/v45/github"
 	"golang.org/x/time/rate"
 )

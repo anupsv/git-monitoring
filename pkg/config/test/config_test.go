@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/asv/git-monitoring/pkg/config"
+	"github.com/anupsv/git-monitoring/pkg/config"
 )
 
 func TestValidate(t *testing.T) {
@@ -258,6 +258,11 @@ func TestValidate(t *testing.T) {
 }
 
 func TestLoadConfig(t *testing.T) {
+	// Save existing GITHUB_TOKEN and unset it during the test
+	oldToken := os.Getenv("GITHUB_TOKEN")
+	os.Unsetenv("GITHUB_TOKEN")
+	defer os.Setenv("GITHUB_TOKEN", oldToken)
+
 	// Test loading the config file
 	// Create a temporary config file for testing
 	validConfig := `
