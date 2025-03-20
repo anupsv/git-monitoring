@@ -38,7 +38,7 @@ jobs:
           GOOS=windows GOARCH=amd64 go build -o bin/git-monitor-windows-amd64.exe ./cmd/git-monitor
 
       - name: Run tests
-        run: go test -v ./...
+        run: go test -v ./... ./pkg/tools/common/test ./pkg/tools/prchecker/test ./pkg/config/test
 
       - name: Create Release
         id: create_release

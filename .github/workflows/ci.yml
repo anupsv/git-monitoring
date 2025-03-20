@@ -48,7 +48,7 @@ jobs:
         run: go mod tidy
 
       - name: Run tests
-        run: go test -v ./...
+        run: go test -v ./... ./pkg/tools/common/test ./pkg/tools/prchecker/test ./pkg/config/test
 
   docker:
     name: Build and Publish Docker Image

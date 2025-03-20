@@ -1,8 +1,26 @@
-.PHONY: build run clean check lint lint-fix
+.PHONY: build run clean check lint lint-fix test test-verbose test-coverage test-coverage-html
 
 # Build the application
 build:
 	go build -o bin/git-monitor ./cmd/git-monitor
+
+# Run all tests
+test:
+	go test ./...
+
+# Run all tests with verbose output
+test-verbose:
+	go test -v ./...
+
+# Run tests with coverage report
+test-coverage:
+	go test -cover ./...
+
+# Run tests with detailed coverage report
+test-coverage-html:
+	go test -coverprofile=coverage.out ./...
+	go tool cover -html=coverage.out -o coverage.html
+	@echo "Coverage report generated at coverage.html"
 
 # Clean build artifacts
 clean:

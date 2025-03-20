@@ -12,6 +12,9 @@ RUN go mod download
 # Copy the source code
 COPY . .
 
+# Run tests
+RUN go test -v ./pkg/tools/common/test ./pkg/tools/prchecker/test ./pkg/config/test
+
 # Build the application
 RUN CGO_ENABLED=0 GOOS=linux go build -o /app/bin/git-monitor ./cmd/git-monitor
 
@@ -19,7 +22,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o /app/bin/git-monitor ./cmd/git-monitor
 FROM alpine:3.17
 
 # Add labels for GitHub Container Registry
-LABEL org.opencontainers.image.source=https://github.com/asv/git-monitoring
+LABEL org.opencontainers.image.source=https://github.com/anupsv/git-monitoring
 LABEL org.opencontainers.image.description="Git repository monitoring tool"
 LABEL org.opencontainers.image.licenses=MIT
 

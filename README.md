@@ -4,7 +4,8 @@ A Go application to monitor Git repositories and ensure they follow best practic
 
 ## Features
 
-- **PR Approval Checker**: Verifies that all pull requests from the configured time window have been approved
+- **PR Approval Checker**: Verifies that all pull requests merged within the configured time window have been approved before merge
+- **Repository Visibility Checker**: Monitors for repositories that were recently made public
 - **GitHub API Rate Limiting**: Respects GitHub API rate limits to prevent throttling issues
 
 ## Installation
@@ -44,11 +45,34 @@ token = ""
   # PR Checker configuration
   [monitors.pr_checker]
   enabled = true
+  # Repository visibility filter options:
+  # - "specific": Only check repositories listed below (default)
+  # - "all": Check all repos (public and private) the token has access to
+  # - "public-only": Only check public repositories
+  # - "private-only": Only check private repositories
+  repo_visibility = "specific"
+  # GitHub organization to check (optional, e.g., "my-org")
+  # If specified with non-"specific" visibility, checks repositories in the organization
+  # If not specified, repositories of the authenticated user will be checked
+  organization = ""
+  # List of repositories to check (only used when repo_visibility = "specific")
   repositories = [
     "owner1/repo1",
     "owner2/repo2"
   ]
   time_window_hours = 24  # Default is 24 hours
+  # Enable verbose logging for PR approval debugging
+  debug_logging = false
+  
+  # Repository Visibility Monitor
+  repo_visibility_enabled = false # Set to true to enable the repository visibility monitor
+
+# Repository Visibility checker configuration
+[visibility]
+# List of GitHub organizations to monitor for repository visibility changes
+organizations = ["your-org-name"]
+# How many hours back to look for visibility changes
+check_window_hours = 24
 ```
 
 ## Usage
@@ -68,6 +92,27 @@ make run CONFIG=path/to/config.toml
 ```
 
 ## Development
+
+### Testing
+
+The project includes comprehensive tests for all key components. To run the tests:
+
+```bash
+# Run all tests
+make test
+
+# Run tests with verbose output
+make test-verbose
+
+# Run tests with coverage report
+make test-coverage
+
+# Generate HTML coverage report
+make test-coverage-html
+
+# Run specific test packages manually
+go test -v ./pkg/tools/common/test ./pkg/tools/prchecker/test ./pkg/config/test
+```
 
 ### Linting
 
