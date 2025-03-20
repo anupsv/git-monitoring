@@ -51,28 +51,41 @@ token = ""
   # - "public-only": Only check public repositories
   # - "private-only": Only check private repositories
   repo_visibility = "specific"
-  # GitHub organization to check (optional, e.g., "my-org")
-  # If specified with non-"specific" visibility, checks repositories in the organization
+  # GitHub organization to check (optional)
+  # Only used when repo_visibility is not "specific"
   # If not specified, repositories of the authenticated user will be checked
   organization = ""
   # List of repositories to check (only used when repo_visibility = "specific")
-  repositories = [
+  specific_repositories = [
     "owner1/repo1",
     "owner2/repo2"
+  ]
+  # List of repositories to exclude (only used with "all", "public-only", or "private-only")
+  excluded_repositories = [
+    "owner1/exclude-repo1",
+    "owner2/exclude-repo2"
   ]
   time_window_hours = 24  # Default is 24 hours
   # Enable verbose logging for PR approval debugging
   debug_logging = false
   
-  # Repository Visibility Monitor
-  repo_visibility_enabled = false # Set to true to enable the repository visibility monitor
-
-# Repository Visibility checker configuration
-[visibility]
-# List of GitHub organizations to monitor for repository visibility changes
-organizations = ["your-org-name"]
-# How many hours back to look for visibility changes
-check_window_hours = 24
+  # Repository Visibility Monitor Configuration
+  [monitors.repo_visibility]
+  enabled = false # Set to true to enable the repository visibility monitor
+  # Repository visibility filter options:
+  # - "specific": Only check repositories of organizations listed below (default)
+  # - "all": Check all repos (public and private) in the organizations
+  # - "public-only": Only check public repositories in the organizations
+  # - "private-only": Only check private repositories in the organizations
+  repo_visibility = "specific"
+  # List of GitHub organizations to monitor for repository visibility changes
+  # Used with all visibility options
+  organizations = [
+    "example-org1",
+    "example-org2"
+  ]
+  # How many hours back to look for visibility changes
+  check_window_hours = 24
 ```
 
 ## Usage
@@ -109,9 +122,6 @@ make test-coverage
 
 # Generate HTML coverage report
 make test-coverage-html
-
-# Run specific test packages manually
-go test -v ./pkg/tools/common/test ./pkg/tools/prchecker/test ./pkg/config/test
 ```
 
 ### Linting
