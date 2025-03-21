@@ -1,55 +1,54 @@
-FROM golang:1.23-alpine AS builder
+# Build stage
+FROM golang:1.21-alpine AS builder
 
-# Set working directory
-WORKDIR /app
+WORKDIR /build
 
-# Copy go.mod and go.sum files
+# Install git and other build dependencies
+RUN apk add --no-cache git ca-certificates
+
+# Copy go.mod and go.sum files first for better layer caching
 COPY go.mod go.sum ./
-
-# Download dependencies
 RUN go mod download
 
-# Copy the source code
+# Copy the rest of the source code
 COPY . .
 
-# Run tests
-RUN go test -v ./pkg/tools/common/test ./pkg/tools/prchecker/test ./pkg/config/test
-
 # Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -o /app/bin/git-monitor ./cmd/git-monitor
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o git-monitor ./cmd/git-monitor/main.go
 
-# Create a minimal image
-FROM alpine:3.17
+# Final stage
+FROM alpine:3.18
 
-# Add labels for GitHub Container Registry
-LABEL org.opencontainers.image.source=https://github.com/anupsv/git-monitoring
-LABEL org.opencontainers.image.description="Git repository monitoring tool"
-LABEL org.opencontainers.image.licenses=MIT
+# Install ca-certificates for HTTPS and AWS CLI for S3 access
+RUN apk add --no-cache ca-certificates aws-cli && \
+    rm -rf /var/cache/apk/*
 
-# Install necessary runtime dependencies
-RUN apk --no-cache add ca-certificates tzdata
-
-# Copy the binary from the builder stage
-COPY --from=builder /app/bin/git-monitor /usr/local/bin/git-monitor
-
-# Copy the example config to a reference location
-COPY config.toml.example /app/config.toml.example
-
-# Create a directory for user configs
-RUN mkdir -p /config
-
-# Set working directory
 WORKDIR /app
 
-# Set config path environment variable
-ENV CONFIG_PATH="/config/config.toml"
+# Create a non-root user to run the application
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+
+# Copy the executable from the builder stage
+COPY --from=builder /build/git-monitor /usr/local/bin/git-monitor
 
 # Copy the entrypoint script
-COPY docker/entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+COPY docker/entrypoint.sh /app/entrypoint.sh
 
-# Set the volume mount point for user configs
-VOLUME ["/config"]
+# Create an example config file
+COPY config.toml.example /app/config.toml.example
 
-# Run the entrypoint script
-ENTRYPOINT ["/entrypoint.sh"] 
+# Set executable permissions
+RUN chmod +x /usr/local/bin/git-monitor /app/entrypoint.sh
+
+# Set environment variables
+ENV CONFIG_PATH=/config/config.toml
+
+# Create config directory and set ownership
+RUN mkdir -p /config && \
+    chown -R appuser:appgroup /config /app
+
+# Switch to non-root user
+USER appuser
+
+# Set the entrypoint script
+ENTRYPOINT ["/app/entrypoint.sh"] 
