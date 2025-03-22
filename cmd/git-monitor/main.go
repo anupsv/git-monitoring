@@ -145,15 +145,15 @@ func writeMarkdownToFile(outputPath string, content string) bool {
 		}
 	}
 
-	// Use 0644 permissions (read/write for owner, read for group/others) for better accessibility
+	// Use 0600 permissions (read/write for owner only) for better security
 	log.Printf("Writing markdown results to %s", outputPath)
-	if err := os.WriteFile(outputPath, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(outputPath, []byte(content), 0600); err != nil {
 		log.Printf("Error writing markdown results to file %s: %v", outputPath, err)
 
 		// Fallback: Try to write to a file in the current directory
 		fallbackPath := filepath.Base(outputPath)
 		log.Printf("Attempting to write to fallback location: %s", fallbackPath)
-		if err := os.WriteFile(fallbackPath, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(fallbackPath, []byte(content), 0600); err != nil {
 			log.Printf("Error writing to fallback location %s: %v", fallbackPath, err)
 
 			// Print content with special markers for extraction
@@ -237,7 +237,14 @@ func sendToSlack(webhookURL string, content string) bool {
 		return false
 	}
 
+	// Validate the webhook URL to mitigate security risks
+	if !strings.HasPrefix(webhookURL, "https://hooks.slack.com/") {
+		log.Printf("Invalid Slack webhook URL: URL must begin with https://hooks.slack.com/")
+		return false
+	}
+
 	// Send request to Slack
+	// #nosec G107 -- URL is validated above to be a Slack webhook URL
 	resp, err := http.Post(webhookURL, "application/json", bytes.NewBuffer(jsonPayload))
 	if err != nil {
 		log.Printf("Error sending to Slack: %v", err)
