@@ -60,12 +60,8 @@ func runPRChecker(cfg *config.Config, useMarkdown bool) ([]prchecker.Result, boo
 
 	// Print results based on output format
 	if useMarkdown {
-		// Capture markdown output
-		output := captureOutput(func() {
-			prchecker.PrintResultsMarkdown(problematicResults)
-		})
-		// Print to console
-		fmt.Print(output)
+		// We don't print to console here anymore, just return the results
+		// The caller will handle capturing the output
 		return problematicResults, monitorFailed
 	}
 
@@ -95,14 +91,7 @@ func runRepoVisibilityChecker(cfg *config.Config, useMarkdown bool) ([]string, b
 	}
 
 	if len(recentlyPublic) > 0 {
-		if useMarkdown {
-			// Capture markdown output
-			output := captureOutput(func() {
-				repovisibility.PrintResultsMarkdown(recentlyPublic)
-			})
-			// Print to console
-			fmt.Print(output)
-		} else {
+		if !useMarkdown {
 			fmt.Println("WARNING: The following repositories were recently made public:")
 			for _, repo := range recentlyPublic {
 				fmt.Printf("  - %s\n", repo)
@@ -336,6 +325,11 @@ func main() {
 				prchecker.PrintResultsMarkdown(prResults)
 			})
 			markdownBuilder.WriteString(output)
+
+			// Only print to console if not sending to Slack
+			if *slackWebhook == "" {
+				fmt.Print(output)
+			}
 		}
 	} else if !*markdownOutput {
 		fmt.Println("PR Checker monitor is disabled in configuration")
@@ -356,6 +350,11 @@ func main() {
 				repovisibility.PrintResultsMarkdown(repoResults)
 			})
 			markdownBuilder.WriteString(output)
+
+			// Only print to console if not sending to Slack
+			if *slackWebhook == "" {
+				fmt.Print(output)
+			}
 		}
 	} else if !*markdownOutput {
 		fmt.Println("Repository Visibility monitor is disabled in configuration")
@@ -375,6 +374,13 @@ func main() {
 		log.Printf("Slack webhook provided, sending results directly")
 		if sendToSlack(*slackWebhook, content) {
 			fmt.Println("Results sent to Slack successfully")
+			// Optionally print the content to console as well for visibility
+			if *markdownOutput {
+				fmt.Println("\nContent sent to Slack:")
+				fmt.Println("-----------------------------------")
+				fmt.Println(content)
+				fmt.Println("-----------------------------------")
+			}
 		} else {
 			fmt.Println("Failed to send results to Slack")
 			// Print to console as fallback
