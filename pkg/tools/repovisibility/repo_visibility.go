@@ -252,3 +252,24 @@ func (r *Checker) CheckOrganizationWithVisibility(ctx context.Context, orgName, 
 
 	return recentlyPublic, nil
 }
+
+// PrintResultsMarkdown outputs recently public repositories in a Markdown table format
+// suitable for Slack notifications
+func PrintResultsMarkdown(recentlyPublic []string) {
+	if len(recentlyPublic) == 0 {
+		return // No results to display
+	}
+
+	// Print header for public repository issues
+	fmt.Println("## :warning: Recently Public Repositories")
+	fmt.Println("")
+	fmt.Println("| Repository | Action Needed |")
+	fmt.Println("|------------|---------------|")
+
+	// Print each public repository in a table row
+	for _, repo := range recentlyPublic {
+		fmt.Printf("| %s | Review visibility settings |\n", repo)
+	}
+
+	fmt.Println("")
+}

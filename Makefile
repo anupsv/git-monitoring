@@ -64,4 +64,4 @@ check: build config check-env
 
 # Run with a specific config file
 run: build check-env
-	./bin/git-monitor --config $(CONFIG) 
+	./bin/git-monitor --config $(CONFIG) --markdown

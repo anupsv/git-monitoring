@@ -217,6 +217,45 @@ func PrintResults(results []Result) bool {
 	return allApproved
 }
 
+// PrintResultsMarkdown outputs PR check results in a Markdown table format suitable for Slack
+// It only includes repositories with unapproved PRs (problematic results)
+func PrintResultsMarkdown(results []Result) bool {
+	if len(results) == 0 {
+		return true // No problematic results to display
+	}
+
+	// Print header for PR issues
+	fmt.Println("## :warning: Unapproved Pull Requests")
+	fmt.Println("")
+	fmt.Println("| Repository | PR | Author | Link |")
+	fmt.Println("|------------|-------|--------|------|")
+
+	// Print each unapproved PR in a table row
+	for _, result := range results {
+		if result.Error != nil {
+			// Skip repositories with errors as they're not actionable
+			continue
+		}
+
+		if len(result.UnapprovedPRs) == 0 {
+			// Skip repositories without unapproved PRs
+			continue
+		}
+
+		for _, pr := range result.UnapprovedPRs {
+			fmt.Printf("| %s | #%d %s | %s | %s |\n",
+				result.Repository,
+				pr.Number,
+				pr.Title,
+				pr.Author,
+				pr.URL)
+		}
+	}
+
+	fmt.Println("")
+	return true
+}
+
 // CheckRepository checks a single repository for unapproved PRs
 // nolint:gocyclo // This function has high complexity due to numerous edge cases and conditions
 func (s *Service) CheckRepository(repository, token string, timeWindow int, debugLogging bool) Result {
