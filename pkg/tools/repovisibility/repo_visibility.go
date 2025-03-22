@@ -253,7 +253,7 @@ func (r *Checker) CheckOrganizationWithVisibility(ctx context.Context, orgName, 
 	return recentlyPublic, nil
 }
 
-// PrintResultsMarkdown outputs recently public repositories in a Markdown table format
+// PrintResultsMarkdown outputs recently public repositories in a code block format
 // suitable for Slack notifications
 func PrintResultsMarkdown(recentlyPublic []string) {
 	if len(recentlyPublic) == 0 {
@@ -262,14 +262,29 @@ func PrintResultsMarkdown(recentlyPublic []string) {
 
 	// Print header for public repository issues
 	fmt.Println("## :warning: Recently Public Repositories")
-	fmt.Println("")
-	fmt.Println("| Repository | Action Needed |")
-	fmt.Println("|------------|---------------|")
+	fmt.Printf("Found %d repositories that were recently made public.\n\n", len(recentlyPublic))
 
-	// Print each public repository in a table row
+	// Start code block
+	fmt.Println("```")
+	// Create fixed-width headers with proper spacing for code block
+	fmt.Println("Repository                              Action Needed")
+	fmt.Println("---------------------------------------------------------------------")
+
+	// Print each public repository in a fixed-width format for code blocks
 	for _, repo := range recentlyPublic {
-		fmt.Printf("| %s | Review visibility settings |\n", repo)
+		// Format repository name with padding
+		repoStr := repo
+		if len(repoStr) > 40 {
+			repoStr = repoStr[:37] + "..."
+		} else {
+			repoStr = fmt.Sprintf("%-40s", repoStr)
+		}
+
+		// Format the output row with fixed-width fields
+		fmt.Printf("%s Review visibility settings\n", repoStr)
 	}
 
+	// End code block
+	fmt.Println("```")
 	fmt.Println("")
 }

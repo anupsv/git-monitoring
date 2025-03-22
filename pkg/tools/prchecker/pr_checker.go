@@ -217,20 +217,32 @@ func PrintResults(results []Result) bool {
 	return allApproved
 }
 
-// PrintResultsMarkdown outputs PR check results in a Markdown table format suitable for Slack
+// PrintResultsMarkdown outputs PR check results in a code block format suitable for Slack
 // It only includes repositories with unapproved PRs (problematic results)
 func PrintResultsMarkdown(results []Result) bool {
-	if len(results) == 0 {
+	// Count total unapproved PRs
+	totalUnapprovedPRs := 0
+	for _, result := range results {
+		if result.Error == nil {
+			totalUnapprovedPRs += len(result.UnapprovedPRs)
+		}
+	}
+
+	if totalUnapprovedPRs == 0 {
 		return true // No problematic results to display
 	}
 
-	// Print header for PR issues
+	// Print header for PR issues with proper spacing
 	fmt.Println("## :warning: Unapproved Pull Requests")
-	fmt.Println("")
-	fmt.Println("| Repository | PR | Author | Link |")
-	fmt.Println("|------------|-------|--------|------|")
+	fmt.Printf("Found %d unapproved pull requests that require attention.\n\n", totalUnapprovedPRs)
 
-	// Print each unapproved PR in a table row
+	// Start code block
+	fmt.Println("```")
+	// Create fixed-width headers with proper spacing for code block
+	fmt.Println("Repository                PR      Author              Link")
+	fmt.Println("--------------------------------------------------------")
+
+	// Print each unapproved PR in a fixed-width format for code blocks
 	for _, result := range results {
 		if result.Error != nil {
 			// Skip repositories with errors as they're not actionable
@@ -243,15 +255,36 @@ func PrintResultsMarkdown(results []Result) bool {
 		}
 
 		for _, pr := range result.UnapprovedPRs {
-			fmt.Printf("| %s | #%d %s | %s | %s |\n",
-				result.Repository,
-				pr.Number,
-				pr.Title,
-				pr.Author,
+			// Format repository name with padding
+			repoStr := result.Repository
+			if len(repoStr) > 24 {
+				repoStr = repoStr[:21] + "..."
+			} else {
+				repoStr = fmt.Sprintf("%-24s", repoStr)
+			}
+
+			// Format PR number
+			prStr := fmt.Sprintf("#%-6d", pr.Number)
+
+			// Format author with padding
+			authorStr := pr.Author
+			if len(authorStr) > 18 {
+				authorStr = authorStr[:15] + "..."
+			} else {
+				authorStr = fmt.Sprintf("%-18s", authorStr)
+			}
+
+			// Format the output row with fixed-width fields
+			fmt.Printf("%s %s %s %s\n",
+				repoStr,
+				prStr,
+				authorStr,
 				pr.URL)
 		}
 	}
 
+	// End code block
+	fmt.Println("```")
 	fmt.Println("")
 	return true
 }

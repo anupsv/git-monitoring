@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/anupsv/git-monitoring/pkg/config"
@@ -115,15 +116,59 @@ func runRepoVisibilityChecker(cfg *config.Config, useMarkdown bool) ([]string, b
 }
 
 // writeMarkdownToFile writes the markdown results to a file
-func writeMarkdownToFile(content string) error {
+// Returns true if writing was successful, false otherwise
+func writeMarkdownToFile(outputPath string, content string) bool {
+	// Ensure directory exists if a path is specified
+	dir := filepath.Dir(outputPath)
+	if dir != "." && dir != "/" {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			log.Printf("Error creating directory %s: %v", dir, err)
+			return false
+		}
+	}
+
 	// Use 0600 permissions (read/write for owner only) for better security
-	return os.WriteFile("markdown-result.md", []byte(content), 0600)
+	if err := os.WriteFile(outputPath, []byte(content), 0600); err != nil {
+		log.Printf("Error writing markdown results to file %s: %v", outputPath, err)
+		return false
+	}
+
+	fmt.Printf("\nMarkdown results written to %s\n", outputPath)
+	return true
+}
+
+// getMarkdownOutputPath returns the path to write markdown results to
+// It checks command-line flag, environment variables, and falls back to a default
+func getMarkdownOutputPath(outputFlag string) string {
+	// If flag is set, use it
+	if outputFlag != "" {
+		return outputFlag
+	}
+
+	// Check environment variables
+	if path := os.Getenv("MARKDOWN_OUTPUT_PATH"); path != "" {
+		return path
+	}
+
+	// Check if we're in a GitHub Actions environment
+	if os.Getenv("GITHUB_ACTIONS") == "true" {
+		// GitHub Actions - use workspace directory if available
+		if workspace := os.Getenv("GITHUB_WORKSPACE"); workspace != "" {
+			return filepath.Join(workspace, "markdown-result.md")
+		}
+		// Alternative: use temp directory which should be writable
+		return filepath.Join(os.TempDir(), "markdown-result.md")
+	}
+
+	// Default fallback
+	return "markdown-result.md"
 }
 
 func main() {
 	// Define command line flags
 	configPath := flag.String("config", "config.toml", "Path to configuration file")
 	markdownOutput := flag.Bool("markdown", true, "Output results in Markdown format for Slack (default)")
+	outputPath := flag.String("output", "", "Path to write markdown results (default: markdown-result.md)")
 	flag.Parse()
 
 	// Load configuration
@@ -182,22 +227,29 @@ func main() {
 		fmt.Println("Repository Visibility monitor is disabled in configuration")
 	}
 
-	// Write markdown results to file if we have any content
+	// Determine content to write
+	var content string
+	if markdownBuilder.Len() > 0 {
+		content = markdownBuilder.String()
+	} else {
+		// Write a simple message when no issues were found
+		content = "## :white_check_mark: No Issues Found\n\nAll repositories are compliant with policies.\n"
+	}
+
+	// Get the output path
+	mdOutputPath := getMarkdownOutputPath(*outputPath)
+
+	// Try to write to the file
 	if *markdownOutput {
-		if markdownBuilder.Len() > 0 {
-			if err := writeMarkdownToFile(markdownBuilder.String()); err != nil {
-				log.Printf("Error writing markdown results to file: %v", err)
-			} else {
-				fmt.Println("\nMarkdown results written to markdown-result.md")
-			}
-		} else {
-			// Write a simple message when no issues were found
-			noIssuesMessage := "## :white_check_mark: No Issues Found\n\nAll repositories are compliant with policies.\n"
-			if err := writeMarkdownToFile(noIssuesMessage); err != nil {
-				log.Printf("Error writing markdown results to file: %v", err)
-			} else {
-				fmt.Println("\nNo issues found. Markdown results written to markdown-result.md")
-			}
+		fileWritten := writeMarkdownToFile(mdOutputPath, content)
+
+		if !fileWritten {
+			// If we couldn't write to the file, print the content with special markers
+			// for easy extraction in GitHub Actions
+			fmt.Println("\n--- MARKDOWN_OUTPUT_START ---")
+			fmt.Println(content)
+			fmt.Println("--- MARKDOWN_OUTPUT_END ---")
+			fmt.Println("\nCouldn't write to file. Use the marked output above for webhook integration.")
 		}
 	}
 
