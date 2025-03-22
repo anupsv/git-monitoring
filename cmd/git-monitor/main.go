@@ -1,11 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
 	"log"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -121,19 +124,135 @@ func writeMarkdownToFile(outputPath string, content string) bool {
 	// Ensure directory exists if a path is specified
 	dir := filepath.Dir(outputPath)
 	if dir != "." && dir != "/" {
+		log.Printf("Creating directory: %s", dir)
+		// Create directory with permissive permissions (0755)
 		if err := os.MkdirAll(dir, 0755); err != nil {
 			log.Printf("Error creating directory %s: %v", dir, err)
 			return false
 		}
+
+		// Explicitly set permissions on the directory to ensure it's accessible
+		if err := os.Chmod(dir, 0755); err != nil {
+			log.Printf("Warning: Failed to set permissions on directory %s: %v", dir, err)
+			// Continue anyway - we'll try to create the file
+		}
+
+		// Log directory info
+		if info, err := os.Stat(dir); err == nil {
+			log.Printf("Directory %s created with mode: %v", dir, info.Mode())
+		} else {
+			log.Printf("Warning: Could not stat directory %s: %v", dir, err)
+		}
 	}
 
-	// Use 0600 permissions (read/write for owner only) for better security
-	if err := os.WriteFile(outputPath, []byte(content), 0600); err != nil {
+	// Use 0644 permissions (read/write for owner, read for group/others) for better accessibility
+	log.Printf("Writing markdown results to %s", outputPath)
+	if err := os.WriteFile(outputPath, []byte(content), 0644); err != nil {
 		log.Printf("Error writing markdown results to file %s: %v", outputPath, err)
-		return false
+
+		// Fallback: Try to write to a file in the current directory
+		fallbackPath := filepath.Base(outputPath)
+		log.Printf("Attempting to write to fallback location: %s", fallbackPath)
+		if err := os.WriteFile(fallbackPath, []byte(content), 0644); err != nil {
+			log.Printf("Error writing to fallback location %s: %v", fallbackPath, err)
+
+			// Print content with special markers for extraction
+			fmt.Println("\n--- MARKDOWN_OUTPUT_START ---")
+			fmt.Println(content)
+			fmt.Println("--- MARKDOWN_OUTPUT_END ---")
+			fmt.Println("\nCouldn't write to file. Use the marked output above.")
+			return false
+		}
+
+		fmt.Printf("\nMarkdown results written to fallback location: %s\n", fallbackPath)
+		return true
+	}
+
+	// Log file info
+	if info, err := os.Stat(outputPath); err == nil {
+		log.Printf("File %s created with mode: %v, size: %d bytes", outputPath, info.Mode(), info.Size())
+	} else {
+		log.Printf("Warning: Could not stat file %s: %v", outputPath, err)
 	}
 
 	fmt.Printf("\nMarkdown results written to %s\n", outputPath)
+	return true
+}
+
+// sendToSlack sends the markdown content directly to a Slack webhook
+func sendToSlack(webhookURL string, content string) bool {
+	// Format content for Slack - wrap in a code block
+	summary := "Git Monitoring Results"
+
+	// Extract first header as summary if available
+	contentLines := strings.Split(content, "\n")
+	for _, line := range contentLines {
+		if strings.HasPrefix(line, "## ") {
+			summary = strings.TrimPrefix(line, "## ")
+			break
+		}
+	}
+
+	// Create the Slack payload
+	type SlackText struct {
+		Type string `json:"type"`
+		Text string `json:"text"`
+	}
+
+	type SlackBlock struct {
+		Type string    `json:"type"`
+		Text SlackText `json:"text,omitempty"`
+	}
+
+	type SlackPayload struct {
+		Text   string       `json:"text"`
+		Blocks []SlackBlock `json:"blocks"`
+	}
+
+	// Create a message with code block formatting
+	formattedText := fmt.Sprintf("*%s*\n\n```\n%s\n```", summary, content)
+
+	// Slack has a 3000 character limit for block text
+	if len(formattedText) > 3000 {
+		formattedText = formattedText[:2950] + "...\n```\n(Content truncated due to size limits)"
+	}
+
+	payload := SlackPayload{
+		Text: summary,
+		Blocks: []SlackBlock{
+			{
+				Type: "section",
+				Text: SlackText{
+					Type: "mrkdwn",
+					Text: formattedText,
+				},
+			},
+		},
+	}
+
+	// Convert payload to JSON
+	jsonPayload, err := json.Marshal(payload)
+	if err != nil {
+		log.Printf("Error creating JSON payload: %v", err)
+		return false
+	}
+
+	// Send request to Slack
+	resp, err := http.Post(webhookURL, "application/json", bytes.NewBuffer(jsonPayload))
+	if err != nil {
+		log.Printf("Error sending to Slack: %v", err)
+		return false
+	}
+	defer resp.Body.Close()
+
+	// Check response
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		log.Printf("Slack API error: Status: %d, Response: %s", resp.StatusCode, string(body))
+		return false
+	}
+
+	log.Printf("Successfully sent results to Slack webhook")
 	return true
 }
 
@@ -142,11 +261,13 @@ func writeMarkdownToFile(outputPath string, content string) bool {
 func getMarkdownOutputPath(outputFlag string) string {
 	// If flag is set, use it
 	if outputFlag != "" {
+		log.Printf("Using output path from command line flag: %s", outputFlag)
 		return outputFlag
 	}
 
 	// Check environment variables
 	if path := os.Getenv("MARKDOWN_OUTPUT_PATH"); path != "" {
+		log.Printf("Using output path from MARKDOWN_OUTPUT_PATH env var: %s", path)
 		return path
 	}
 
@@ -154,13 +275,18 @@ func getMarkdownOutputPath(outputFlag string) string {
 	if os.Getenv("GITHUB_ACTIONS") == "true" {
 		// GitHub Actions - use workspace directory if available
 		if workspace := os.Getenv("GITHUB_WORKSPACE"); workspace != "" {
-			return filepath.Join(workspace, "markdown-result.md")
+			path := filepath.Join(workspace, "markdown-result.md")
+			log.Printf("In GitHub Actions, using workspace path: %s", path)
+			return path
 		}
 		// Alternative: use temp directory which should be writable
-		return filepath.Join(os.TempDir(), "markdown-result.md")
+		path := filepath.Join(os.TempDir(), "markdown-result.md")
+		log.Printf("In GitHub Actions but no workspace, using temp dir: %s", path)
+		return path
 	}
 
 	// Default fallback
+	log.Printf("Using default output path: markdown-result.md")
 	return "markdown-result.md"
 }
 
@@ -169,6 +295,7 @@ func main() {
 	configPath := flag.String("config", "config.toml", "Path to configuration file")
 	markdownOutput := flag.Bool("markdown", true, "Output results in Markdown format for Slack (default)")
 	outputPath := flag.String("output", "", "Path to write markdown results (default: markdown-result.md)")
+	slackWebhook := flag.String("slack", "", "Slack webhook URL to post results directly (overrides file output)")
 	flag.Parse()
 
 	// Load configuration
@@ -196,7 +323,7 @@ func main() {
 			monitorFailed = true
 		}
 
-		// Capture output for markdown file
+		// Capture output for markdown file or Slack
 		if *markdownOutput && len(prResults) > 0 {
 			output := captureOutput(func() {
 				prchecker.PrintResultsMarkdown(prResults)
@@ -216,7 +343,7 @@ func main() {
 			monitorFailed = true
 		}
 
-		// Capture output for markdown file
+		// Capture output for markdown file or Slack
 		if *markdownOutput && len(repoResults) > 0 {
 			output := captureOutput(func() {
 				repovisibility.PrintResultsMarkdown(repoResults)
@@ -227,7 +354,7 @@ func main() {
 		fmt.Println("Repository Visibility monitor is disabled in configuration")
 	}
 
-	// Determine content to write
+	// Determine content to write or send
 	var content string
 	if markdownBuilder.Len() > 0 {
 		content = markdownBuilder.String()
@@ -236,11 +363,21 @@ func main() {
 		content = "## :white_check_mark: No Issues Found\n\nAll repositories are compliant with policies.\n"
 	}
 
-	// Get the output path
-	mdOutputPath := getMarkdownOutputPath(*outputPath)
-
-	// Try to write to the file
-	if *markdownOutput {
+	// If Slack webhook is provided, send results directly to Slack
+	if *slackWebhook != "" {
+		log.Printf("Slack webhook provided, sending results directly")
+		if sendToSlack(*slackWebhook, content) {
+			fmt.Println("Results sent to Slack successfully")
+		} else {
+			fmt.Println("Failed to send results to Slack")
+			// Print to console as fallback
+			fmt.Println("\n--- MARKDOWN_OUTPUT_START ---")
+			fmt.Println(content)
+			fmt.Println("--- MARKDOWN_OUTPUT_END ---")
+		}
+	} else if *markdownOutput {
+		// Otherwise, try to write to file if markdown output is enabled
+		mdOutputPath := getMarkdownOutputPath(*outputPath)
 		fileWritten := writeMarkdownToFile(mdOutputPath, content)
 
 		if !fileWritten {
