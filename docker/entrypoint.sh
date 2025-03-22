@@ -35,8 +35,31 @@ else
   echo "[AUTH] GitHub token is set"
 fi
 
+# Debug: Print the arguments (safely masking any sensitive ones)
+echo "[DEBUG] Command arguments count: $#"
+for arg in "$@"; do
+  # Mask webhook URLs to avoid leaking secrets
+  if [[ "$arg" == "--slack"* ]] || [[ "$prev_arg" == "--slack" ]]; then
+    if [[ "$arg" == "--slack" ]]; then
+      echo "[DEBUG] Arg: $arg (next arg will be masked)"
+    else
+      # If it's a webhook URL (after --slack), mask it
+      if [[ "$arg" == "https://"* ]]; then
+        masked="${arg:0:8}...${arg: -10}"
+        echo "[DEBUG] Arg: $masked (masked URL)"
+      else
+        echo "[DEBUG] Arg: $arg"
+      fi
+    fi
+  else
+    echo "[DEBUG] Arg: $arg"
+  fi
+  prev_arg="$arg"
+done
+
 echo "[EXEC] Running: git-monitor --config \"$CONFIG_PATH\" $@"
 echo "============================="
 echo ""
 
-git-monitor --config "$CONFIG_PATH" "$@" 
+# Execute with all arguments passed
+exec git-monitor --config "$CONFIG_PATH" "$@" 

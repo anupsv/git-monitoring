@@ -170,6 +170,8 @@ func writeMarkdownToFile(outputPath string, content string) bool {
 
 // sendToSlack sends the markdown content directly to a Slack webhook
 func sendToSlack(webhookURL string, content string) bool {
+	log.Printf("Preparing to send results to Slack webhook")
+
 	// Format content for Slack - wrap in a code block
 	summary := "Git Monitoring Results"
 
@@ -226,17 +228,30 @@ func sendToSlack(webhookURL string, content string) bool {
 		return false
 	}
 
-	// Validate the webhook URL to mitigate security risks
-	if !strings.HasPrefix(webhookURL, "https://hooks.slack.com/") {
-		log.Printf("Invalid Slack webhook URL: URL must begin with https://hooks.slack.com/")
+	// Print masked webhook URL for debugging
+	if len(webhookURL) > 10 {
+		maskedURL := webhookURL[:8] + "..." + webhookURL[len(webhookURL)-10:]
+		log.Printf("Sending to webhook URL (masked): %s", maskedURL)
+	} else {
+		log.Printf("Webhook URL is too short, might be invalid")
+	}
+
+	// Basic validation to ensure the URL is HTTPS (more permissive)
+	if !strings.HasPrefix(webhookURL, "https://") {
+		log.Printf("Invalid Slack webhook URL: URL must begin with https://")
+		log.Printf("Please check your webhook URL and ensure it starts with https://")
 		return false
 	}
 
+	// Log request details
+	log.Printf("Sending payload to Slack (size: %d bytes)", len(jsonPayload))
+
 	// Send request to Slack
-	// #nosec G107 -- URL is validated above to be a Slack webhook URL
+	// #nosec G107 -- URL is validated above to use HTTPS
 	resp, err := http.Post(webhookURL, "application/json", bytes.NewBuffer(jsonPayload))
 	if err != nil {
 		log.Printf("Error sending to Slack: %v", err)
+		log.Printf("Network details: %T", err)
 		return false
 	}
 	defer resp.Body.Close()
@@ -245,10 +260,11 @@ func sendToSlack(webhookURL string, content string) bool {
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 		log.Printf("Slack API error: Status: %d, Response: %s", resp.StatusCode, string(body))
+		log.Printf("Headers: %v", resp.Header)
 		return false
 	}
 
-	log.Printf("Successfully sent results to Slack webhook")
+	log.Printf("Successfully sent results to Slack webhook (HTTP %d)", resp.StatusCode)
 	return true
 }
 
